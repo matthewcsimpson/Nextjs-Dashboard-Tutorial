@@ -1,10 +1,12 @@
+// Libraries 
+import { notFound } from 'next/navigation';
+
 // Components
 import Form from '@/app/ui/invoices/edit-form';
 import Breadcrumbs from '@/app/ui/invoices/breadcrumbs';
 
 // Helpers
 import { fetchCustomers, fetchInvoiceById } from '@/app/lib/data';
-import { promise } from 'zod';
 
 export default async function InvoiceEditPage({ params }: { params: { id: string } }) {
     const { id } = params;
@@ -12,6 +14,10 @@ export default async function InvoiceEditPage({ params }: { params: { id: string
         fetchInvoiceById(id),
         fetchCustomers(),
     ])
+
+    if(!invoice){
+        notFound();
+    }
 
     return (
         <main>
