@@ -245,7 +245,6 @@ export async function createCustomer(previousState: UpdateCustomerState, formDat
             VALUES (${name}, ${email}, ${`/customers/default.png`})
         `;
     } catch (err) {
-        console.error("--------------> Error: ", err);
         return {
             message: 'An error occurred while i was  creating the customer',
         };
