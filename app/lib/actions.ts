@@ -11,7 +11,7 @@ import { AuthError } from 'next-auth';
 import { signIn } from '@/auth';
 import email from 'next-auth/providers/email';
 
-// Validation Schema
+// Invoice Validation Schema
 const InvoiceFormSchema = z.object({
     id: z.string(),
     customerId: z.string({
@@ -26,12 +26,22 @@ const InvoiceFormSchema = z.object({
 const CreateInvoiceSchema = InvoiceFormSchema.omit({ id: true, date: true });
 const UpdateInvoiceSchema = InvoiceFormSchema.omit({ id: true, date: true });
 
+// Customer Validation Schema
 const CustomerFormSchema = z.object({
-    customerId: z.string(),
-    name: z.string(),
-    email: z.string().email(),
+    customerId: z.string({
+        required_error: 'Customer ID is required',
+        invalid_type_error: 'Customer ID must be a string'
+    }),
+    name: z.string({
+        required_error: 'Please enter a name',
+        invalid_type_error: 'Name must be a string'
+    }).min(1, 'Name cannot be empty'),
+    email: z.string({
+        required_error: 'Please enter an email address',
+        invalid_type_error: 'Email must be a string'
+    }).email('Please enter a valid email address'),
 })
-
+const CreateCustomerSchema = CustomerFormSchema.omit({ customerId: true });
 const UpdateCustomerSchema = CustomerFormSchema.omit({ customerId: true });
 
 
@@ -169,7 +179,6 @@ export async function updateCustomer(
     formData: FormData,
 ) {
 
-    console.log("------------------------>UPDATECUSTOMERFIRING", id)
     const validatedFormData = UpdateCustomerSchema.safeParse({
         customerId: formData.get('customerId'),
         name: formData.get('name'),
@@ -193,6 +202,55 @@ export async function updateCustomer(
     } catch (error) {
         return { message: 'Database Error: Failed to Update Invoice.' };
     }
+
+    revalidatePath('/dashboard/customers');
+    redirect('/dashboard/customers');
+}
+
+
+/**
+ * Create a customer
+ * @param previousState 
+ * @param formData 
+ * @returns 
+ */
+export async function createCustomer(previousState: UpdateCustomerState, formData: FormData) {
+
+
+    const validatedFormData = CreateCustomerSchema.safeParse({
+        name: formData.get('name'),
+        email: formData.get('email'),
+    });
+
+    if (!validatedFormData.success) {
+        return {
+            errors: validatedFormData.error.flatten().fieldErrors,
+            message: 'Missing Fields. Failed to Create Customer.',
+        };
+    }
+
+    const { name, email } = validatedFormData.data;
+
+    const check = await sql`SELECT email FROM customers WHERE email = ${email}`;
+
+
+    if (check.rows.length > 0) {
+        return {
+            message: 'Customer with the same email already exists.',
+        };
+    }
+    try {
+        await sql`
+            INSERT INTO customers (name, email, image_url)
+            VALUES (${name}, ${email}, ${`/customers/default.png`})
+        `;
+    } catch (err) {
+        console.error("--------------> Error: ", err);
+        return {
+            message: 'An error occurred while i was  creating the customer',
+        };
+    }
+
 
     revalidatePath('/dashboard/customers');
     redirect('/dashboard/customers');
