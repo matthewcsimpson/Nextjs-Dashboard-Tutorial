@@ -17,7 +17,7 @@ import { Button } from '@/app/ui/button';
 import { CustomerField, InvoiceForm } from '@/app/lib/definitions';
 
 // Helpers 
-import { updateInvoice, State } from '@/app/lib/actions';
+import { updateInvoice, UpdateInvoiceState } from '@/app/lib/actions';
 
 export default function EditInvoiceForm({
   invoice,
@@ -26,7 +26,7 @@ export default function EditInvoiceForm({
   invoice: InvoiceForm;
   customers: CustomerField[];
 }) {
-  const initialState: State = { message: null, errors: {} };
+  const initialState: UpdateInvoiceState = { message: null, errors: {} };
   const updateInvoiceWithId = updateInvoice.bind(null, invoice.id);
   const [state, formAction] = useActionState(updateInvoiceWithId, initialState);
 

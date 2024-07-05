@@ -9,9 +9,10 @@ import { AuthError } from 'next-auth';
 
 // Helpers
 import { signIn } from '@/auth';
+import email from 'next-auth/providers/email';
 
 // Validation Schema
-const FormSchema = z.object({
+const InvoiceFormSchema = z.object({
     id: z.string(),
     customerId: z.string({
         invalid_type_error: "please select a customer"
@@ -22,17 +23,35 @@ const FormSchema = z.object({
     date: z.string(),
 });
 
-const CreateInvoiceSchema = FormSchema.omit({ id: true, date: true });
-const UpdateInvoiceSchema = FormSchema.omit({ id: true, date: true });
+const CreateInvoiceSchema = InvoiceFormSchema.omit({ id: true, date: true });
+const UpdateInvoiceSchema = InvoiceFormSchema.omit({ id: true, date: true });
+
+const CustomerFormSchema = z.object({
+    customerId: z.string(),
+    name: z.string(),
+    email: z.string().email(),
+})
+
+const UpdateCustomerSchema = CustomerFormSchema.omit({ customerId: true });
+
 
 // Types 
-export type State = {
+export type UpdateInvoiceState = {
     errors?: {
         customerId?: string[];
         amount?: string[];
         status?: string[];
     };
-    message?: string | null;
+    message: string | null;
+};
+
+export type UpdateCustomerState = {
+    errors?: {
+        customerId?: string[];
+        name?: string[];
+        email?: string[];
+    };
+    message: string;
 };
 
 
@@ -42,9 +61,9 @@ export type State = {
  * @param formData 
  * @returns 
  */
-export async function createInvoice(previousState: State, formData: FormData) {
-    
-    
+export async function createInvoice(previousState: UpdateInvoiceState, formData: FormData) {
+
+
     const validatedFormData = CreateInvoiceSchema.safeParse({
         customerId: formData.get('customerId'),
         amount: formData.get('amount'),
@@ -85,7 +104,7 @@ export async function createInvoice(previousState: State, formData: FormData) {
  */
 export async function updateInvoice(
     id: string,
-    prevState: State,
+    prevState: UpdateInvoiceState,
     formData: FormData,
 ) {
     const validatedFormData = UpdateInvoiceSchema.safeParse({
@@ -135,6 +154,52 @@ export async function deleteInvoice(id: string) {
         }
     }
 }
+
+
+
+/**
+ * Update an invoice
+ * @param id 
+ * @param formData 
+ * @returns 
+ */
+export async function updateCustomer(
+    id: string,
+    prevState: UpdateCustomerState,
+    formData: FormData,
+) {
+
+    console.log("------------------------>UPDATECUSTOMERFIRING", id)
+    const validatedFormData = UpdateCustomerSchema.safeParse({
+        customerId: formData.get('customerId'),
+        name: formData.get('name'),
+        email: formData.get('email'),
+    });
+
+    if (!validatedFormData.success) {
+        return {
+            errors: validatedFormData.error.flatten().fieldErrors,
+            message: 'Missing Fields. Failed to Update Invoice.',
+        };
+    }
+    const { name, email } = validatedFormData.data;
+
+    try {
+        await sql`
+        UPDATE customers
+        SET name = ${name}, email = ${email}
+        WHERE id = ${id}
+      `;
+    } catch (error) {
+        return { message: 'Database Error: Failed to Update Invoice.' };
+    }
+
+    revalidatePath('/dashboard/customers');
+    redirect('/dashboard/customers');
+}
+
+
+
 
 /**
  * Autenticate a user
